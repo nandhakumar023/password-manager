@@ -66,7 +66,8 @@ def view_passwd(master_name, key):
         print("1 VEIW ALL PASSWORD\n2 ACCORDING TO SITE AND EMAIL\n3 ACCORDING TO EMAIL\n4 QUIT")
         choice = get_choice()
         if choice == 1:
-            query = f"SELECT * FROM {master_name}"
+            query = "SELECT * FROM ?"
+            cursor.execute(query, (master_name,))
             try:
                 cursor.execute(query)
             except:
@@ -87,9 +88,9 @@ def view_passwd(master_name, key):
                         print("!!!Please enter email or site or app name!!!")
                         continue
                     else:  #site entered
-                        query = f"SELECT * FROM {master_name} WHERE site = ?"
+                        query = f"SELECT * FROM  WHERE site = ?"
                         try:
-                            cursor.execute(query, (site,))
+                            cursor.execute(query, (master_name, site))
                         except:
                             print(f"#NO password added#")
                             return
@@ -112,9 +113,9 @@ def view_passwd(master_name, key):
                             else:
                                 print("!!!Invalid index!!!")
                 else:    #entered some email
-                    query = f"SELECT * FROM {master_name} WHERE email = ?"
+                    query = f"SELECT * FROM ? WHERE email = ?"
                     try:
-                        cursor.execute(query, (email,))
+                        cursor.execute(query, (master_name, email))
                     except:
                         print(f"#####NO password added#####")
                         return
@@ -139,8 +140,8 @@ def view_passwd(master_name, key):
         elif choice == 3:
             # View passwords according to email
             email = input("Enter email: ")
-            query = f"SELECT * FROM {master_name} WHERE email = ?"
-            cursor.execute(query, (email,))
+            query = f"SELECT * FROM ? WHERE email = ?"
+            cursor.execute(query, (master_name, email))
             detail_list = cursor.fetchall()
             for detail in detail_list:
                 decrypted_passwd = decode_passwd(encrypted_passwd=detail[4], key=key)
@@ -155,15 +156,15 @@ def view_passwd(master_name, key):
 def add_passwd(master_name, key):
     connection = sqlite3.connect("passwd_list.db")
     cursor = connection.cursor()
-    cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS {master_name} (
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ? (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             site TEXT NULL,
             username TEXT NULL,
             email TEXT NULL,
             encrypted_passwd BLOB NOT NULL
         );
-    """)
+    """, (master_name,))
     print("if you want to not give data press enter!")
     while True:
         site = input("enter site or app your using password: ")
@@ -195,8 +196,8 @@ def add_passwd(master_name, key):
             print("password need to be atleast 8 char!!!")
 
     encoded_passwd = encode_passwd(passwd, key)
-    query = f"INSERT INTO {master_name} (site, username, email, encrypted_passwd) VALUES (?, ?, ?, ?)"
-    datas = [site, username, email, encoded_passwd]
+    query = f"INSERT INTO ? (site, username, email, encrypted_passwd) VALUES (?, ?, ?, ?)"
+    datas = [master_name, site, username, email, encoded_passwd]
     for data in datas:
         if len(data) == 0:
             datas[datas.index(data)] = "!!not entered!!"
@@ -244,26 +245,26 @@ def re_encrypt_saved_passwd(old_key, new_key, master_name):
     connection = sqlite3.connect("passwd_list.db")
     cursor = connection.cursor()
     cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS {master_name} (
+        CREATE TABLE IF NOT EXISTS ? (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             site TEXT NULL,
             username TEXT NULL,
             email TEXT NULL,
             encrypted_passwd BLOB NOT NULL
         );
-    """)
-    query = f"SELECT encrypted_passwd FROM {master_name}"
-    cursor.execute(query)
+    """, (master_name, ))
+    query = f"SELECT encrypted_passwd FROM ?"
+    cursor.execute(query, (master_name, ))
     stored_encrypted_passwd_list = cursor.fetchall()
-    print(stored_encrypted_passwd_list)
+    # print(stored_encrypted_passwd_list)
     for stored_encrypted_passwd in stored_encrypted_passwd_list:
         encrypted_passwd = stored_encrypted_passwd[0]
         # print(f"Stored encrypted passwd: {encrypted_passwd}")
         decrypted_passwd = decode_passwd(encrypted_passwd, old_key)  #decode_passwd(encrypted_passwd=detail[4], key=key)
         # print(f"Decrypted passwd: {decrypted_passwd}")
         new_encrypted_passwd = encode_passwd(decrypted_passwd, new_key)
-        query = f"UPDATE {master_name} SET encrypted_passwd = ? WHERE encrypted_passwd = ?"
-        cursor.execute(query, (new_encrypted_passwd, encrypted_passwd))
+        query = f"UPDATE ? SET encrypted_passwd = ? WHERE encrypted_passwd = ?"
+        cursor.execute(query, (master_name, new_encrypted_passwd, encrypted_passwd))
     connection.commit()
     connection.close()
     print("###passwd re-encrypted###")
@@ -322,14 +323,14 @@ def change_master_passwd():
         algorithm=hashes.SHA256(),
         length=32,
         salt=salt,
-        iterations=100000
+        iterations=100000      # Use 100000 iterations to ensure sufficient security for password hashing
     )
     old_key = kdf_old.derive(old_passwd.encode())
     kdf_new = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
         salt=new_salt,
-        iterations=100000
+        iterations=100000      # Use 100000 iterations to ensure sufficient security for password hashing
     )
     new_key = kdf_new.derive(new_passwd.encode())
     re_encrypt_saved_passwd(old_key=old_key, new_key=new_key, master_name=user_name)
@@ -372,8 +373,8 @@ def sign_in():
                 print("Password entered not matched")
     salt = bcrypt.gensalt()
     hashed_password = bcrypt.hashpw(passwd.encode(), salt)
-    qury = "INSERT INTO users (user_name, hashed_passwd, salt) VALUES (?, ?, ?)"
-    cursor.execute(qury, (entered_name, hashed_password, salt))
+    query = "INSERT INTO users (user_name, hashed_passwd, salt) VALUES (?, ?, ?)"
+    cursor.execute(query, (entered_name, hashed_password, salt))
     connection.commit()
     cursor.close()
     connection.close()
@@ -389,7 +390,7 @@ def main() -> None:
                     algorithm=hashes.SHA256(),
                     length=32,
                     salt=salt,
-                    iterations=100000
+                    iterations=100000      # Use 100000 iterations to ensure sufficient security for password hashing
                 )
                 key = kdf.derive(master_passwd.encode())
                 while True:
