@@ -220,11 +220,11 @@ def login() -> str:
     cursor = connection.cursor()
     while tmp:
         name_entered = input("enter your user name: ")
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=users;")
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users';")
         result = cursor.fetchone()
         if not result:
             print("##FIRST SIGNIN##")
-            return None
+            return None, None, None, None
         cursor.execute("SELECT user_name FROM users")
         name_list = cursor.fetchall()
         for name in name_list:
@@ -431,4 +431,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    #TODO: handel error view passwd before creating passwd no table as master name.
